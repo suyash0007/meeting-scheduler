@@ -2,7 +2,6 @@
 
 A Next.js application for creating and scheduling Google Meet meetings with OAuth integration. Users can create instant meetings or schedule future meetings through an intuitive interface.
 
-![Meeting Scheduler](https://raw.githubusercontent.com/username/meeting-scheduler/main/public/screenshot.png)
 
 ## Features
 
@@ -269,14 +268,6 @@ Vercel automatically sets up continuous deployment from your GitHub repository. 
    - Serverless function optimization
    - Edge function deployment for better global performance
    - WebSocket for real-time updates
-
-## License
-
-MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Learn More
 
