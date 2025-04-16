@@ -228,7 +228,7 @@ Vercel automatically sets up continuous deployment from your GitHub repository. 
 When logging in with Google for the first time, users may see a security warning page since the application is in development or testing mode. To proceed:
 
 1. Click on "Advanced" at the bottom of the warning page
-2. Click "Continue to [your-app-name]" to proceed to the authentication process
+2. Click "Continue to [meeting-scheduler-gamma-five.vercel.app](https://meeting-scheduler-gamma-five.vercel.app) to proceed to the authentication process
 3. Grant the requested permissions when prompted by Google:
    - Calendar access is required to create meetings
    - Email and profile information is needed for user identification
