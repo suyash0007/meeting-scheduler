@@ -100,7 +100,7 @@ meeting-scheduler/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/username/meeting-scheduler.git
+   git clone https://github.com/suyash0007/meeting-scheduler.git
    cd meeting-scheduler
    ```
 
