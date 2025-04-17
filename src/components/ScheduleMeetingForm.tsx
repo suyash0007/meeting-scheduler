@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface MeetingDetails {
@@ -8,15 +8,31 @@ interface MeetingDetails {
   date: string;
   time: string;
   duration: number;
+  name: string;
+  displayTimezone?: string;
+  calendarTimezone?: string;
 }
 
 export default function ScheduleMeetingForm() {
+  const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(30);
+  const [timezone, setTimezone] = useState("");
   const [meetingDetails, setMeetingDetails] = useState<MeetingDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Get user's timezone on component mount
+  useEffect(() => {
+    try {
+      const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      setTimezone(detectedTimezone || "UTC");
+    } catch (error) {
+      console.error("Could not detect timezone:", error);
+      setTimezone("UTC");
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +45,7 @@ export default function ScheduleMeetingForm() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ date, time, duration }),
+        body: JSON.stringify({ name, date, time, duration, timezone }),
       });
 
       const data = await res.json();
@@ -38,7 +54,10 @@ export default function ScheduleMeetingForm() {
           link: data.meetLink,
           date,
           time,
-          duration
+          duration,
+          name,
+          displayTimezone: data.meetingDetails?.displayTimezone || timezone,
+          calendarTimezone: data.meetingDetails?.calendarTimezone
         });
       } else if (data.error) {
         setError(data.error);
@@ -53,21 +72,38 @@ export default function ScheduleMeetingForm() {
 
   // Format date to display in a more readable format
   const formatDate = (dateString: string) => {
+    // Use the exact date string that was input by the user
+    // Don't convert between timezones when displaying the date
+    const [year, month, day] = dateString.split('-').map(Number);
+    
     const options: Intl.DateTimeFormatOptions = { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
     };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    
+    // Create a date object but preserve the date parts exactly as selected
+    const date = new Date();
+    date.setFullYear(year, month - 1, day); // month is 0-indexed in JS
+    
+    return date.toLocaleDateString(undefined, options);
   };
 
   // Format time to display in a more readable format
   const formatTime = (timeString: string) => {
-    const [hours, minutes] = timeString.split(':');
+    // Use the exact time that was input by the user
+    // Don't convert between timezones when displaying the time
+    const [hours, minutes] = timeString.split(':').map(Number);
+    
     const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes));
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    date.setHours(hours, minutes, 0, 0);
+    
+    return date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true  // Show as AM/PM format
+    });
   };
 
   // Format duration to display hours and minutes
@@ -78,6 +114,39 @@ export default function ScheduleMeetingForm() {
     return minutes > 0 
       ? `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''}` 
       : `${hours} hour${hours > 1 ? 's' : ''}`;
+  };
+
+  // Format timezone for better readability
+  const formatTimezone = (tzString?: string) => {
+    if (!tzString) return "Unknown";
+    
+    // Convert "America/New_York" to "America/New York"
+    const formatted = tzString.replace(/_/g, ' ');
+    
+    // Add the timezone abbreviation if possible
+    try {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tzString,
+        timeZoneName: 'short'
+      });
+      const tzParts = formatter.formatToParts(now).find(part => part.type === 'timeZoneName');
+      if (tzParts?.value) {
+        return `${formatted} (${tzParts.value})`;
+      }
+    } catch {
+      // If any error occurs, just return the formatted string
+    }
+    
+    return formatted;
+  };
+
+  // Helper function to compare timezones
+  const areEquivalentTimezones = (tz1?: string, tz2?: string) => {
+    if (!tz1 || !tz2) return false;
+    const formatted1 = tz1.replace(/_/g, ' ').toLowerCase();
+    const formatted2 = tz2.replace(/_/g, ' ').toLowerCase();
+    return formatted1 === formatted2;
   };
 
   return (
@@ -92,6 +161,20 @@ export default function ScheduleMeetingForm() {
       <div className="bg-white rounded-lg shadow-md p-6">
         {!meetingDetails ? (
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-700">Meeting Name</label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                placeholder="Enter meeting name"
+                required
+              />
+            </div>
+
             <div>
               <label htmlFor="date" className="block mb-2 text-sm font-medium text-gray-700">Date</label>
               <input
@@ -117,6 +200,9 @@ export default function ScheduleMeetingForm() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Time will be scheduled in your local timezone: <strong>{formatTimezone(timezone)}</strong>
+              </p>
             </div>
 
             <div>
@@ -167,6 +253,13 @@ export default function ScheduleMeetingForm() {
               <div className="space-y-2 text-gray-700">
                 <div className="flex">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span><strong>Name:</strong> {meetingDetails.name}</span>
+                </div>
+                
+                <div className="flex">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span><strong>Date:</strong> {formatDate(meetingDetails.date)}</span>
@@ -185,6 +278,30 @@ export default function ScheduleMeetingForm() {
                   </svg>
                   <span><strong>Duration:</strong> {formatDuration(meetingDetails.duration)}</span>
                 </div>
+
+                <div className="flex">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+                  </svg>
+                  <span><strong>Your Timezone:</strong> {formatTimezone(meetingDetails.displayTimezone)}</span>
+                </div>
+
+                {meetingDetails.calendarTimezone && 
+                  meetingDetails.displayTimezone && 
+                  meetingDetails.calendarTimezone.trim() !== meetingDetails.displayTimezone.trim() && 
+                  !areEquivalentTimezones(meetingDetails.calendarTimezone, meetingDetails.displayTimezone) && (
+                  <div className="flex mt-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <div className="text-amber-600">
+                      <strong>Important Note:</strong> Your Google Calendar is set to {formatTimezone(meetingDetails.calendarTimezone)}. 
+                      This meeting has been scheduled for <strong>{formatDate(meetingDetails.date)} at {formatTime(meetingDetails.time)}</strong> in your 
+                      local timezone ({formatTimezone(meetingDetails.displayTimezone)}). 
+                      <p className="mt-1">Due to timezone differences, this may appear as a different date/time in your Google Calendar.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -203,7 +320,7 @@ export default function ScheduleMeetingForm() {
               </a>
             </div>
             
-            <div className="flex justify-between">
+            <div className="flex space-x-4">
               <button 
                 onClick={() => navigator.clipboard.writeText(meetingDetails.link)}
                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center"

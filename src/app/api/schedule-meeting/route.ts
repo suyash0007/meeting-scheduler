@@ -10,27 +10,61 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { date, time, duration } = body;
+  const { name, date, time, duration, timezone } = body;
 
-  const startDateTime = new Date(`${date}T${time}`);
-  const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
-
+  // Get user's timezone or default to browser timezone
+  const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: session.accessToken });
 
   const calendar = google.calendar({ version: "v3", auth });
 
   try {
+    // First, try to get the user's calendar settings to determine their timezone
+    let userCalendarTimezone;
+    try {
+      const calendarSettings = await calendar.settings.get({
+        setting: 'timezone'
+      });
+      userCalendarTimezone = calendarSettings.data.value;
+    } catch {
+      // Ignore error and use browser timezone instead
+      console.log("Could not fetch calendar timezone, using browser timezone instead");
+      userCalendarTimezone = userTimezone;
+    }
+    
+    // *** IMPORTANT: Create the datetime strings directly without Date object manipulation ***
+    // This avoids any timezone conversion issues
+    
+    // Format: 2023-12-17T14:30:00
+    const startDateTime = `${date}T${time.padStart(5, '0')}:00`;
+    
+    // Calculate end time by adding duration (in minutes) to the time parts
+    let [hours, minutes] = time.split(':').map(Number);
+    minutes += duration;
+    hours += Math.floor(minutes / 60);
+    minutes = minutes % 60;
+    
+    // Format end time with leading zeros
+    const endTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    const endDateTime = `${date}T${endTime}`;
+    
+    console.log(`Creating meeting: ${startDateTime} to ${endDateTime} in timezone ${userTimezone}`);
+    
+    // Create an event with explicit timezone information using the user's input
     const event = await calendar.events.insert({
       calendarId: "primary",
       conferenceDataVersion: 1,
       requestBody: {
-        summary: "Scheduled Meeting",
+        summary: name || "Scheduled Meeting",
         start: {
-          dateTime: startDateTime.toISOString(),
+          dateTime: startDateTime,
+          timeZone: userTimezone
         },
         end: {
-          dateTime: endDateTime.toISOString(),
+          dateTime: endDateTime,
+          timeZone: userTimezone
         },
         conferenceData: {
           createRequest: {
@@ -45,9 +79,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       meetLink,
       meetingDetails: {
+        name,
         date,
         time,
-        duration
+        duration,
+        displayTimezone: userTimezone,
+        calendarTimezone: userCalendarTimezone
       }
     });
   } catch (error) {
