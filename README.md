@@ -2,13 +2,12 @@
 
 A Next.js application for creating and scheduling Google Meet meetings with OAuth integration. Users can create instant meetings or schedule future meetings through an intuitive interface.
 
-![Meeting Scheduler](https://raw.githubusercontent.com/username/meeting-scheduler/main/public/screenshot.png)
-
 ## Features
 
 - **Google SSO Authentication**: Secure login with Google OAuth
 - **Instant Meeting Creation**: Generate Google Meet links with one click
 - **Meeting Scheduling**: Plan meetings with customizable date, time, and duration
+- **Calendar Integration**: All meetings are automatically added to the user's Google Calendar
 - **Responsive UI**: Clean, modern interface that works on all devices
 - **Redux State Management**: Centralized state management for predictable behavior
 
@@ -20,6 +19,7 @@ A Next.js application for creating and scheduling Google Meet meetings with OAut
 - [Google Cloud Setup](#google-cloud-setup)
 - [Development](#development)
 - [Deployment on Vercel](#deployment-on-vercel)
+- [Usage Notes](#usage-notes)
 - [Limitations](#limitations)
 - [Future Improvements](#future-improvements)
 
@@ -100,7 +100,7 @@ meeting-scheduler/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/username/meeting-scheduler.git
+   git clone https://github.com/suyash0007/meeting-scheduler.git
    cd meeting-scheduler
    ```
 
@@ -221,6 +221,20 @@ Vercel automatically sets up continuous deployment from your GitHub repository. 
 3. Add your custom domain and follow the verification steps
 4. Update your Google OAuth credentials with the new domain
 
+## Usage Notes
+
+### Google Authentication Process
+
+When logging in with Google for the first time, users may see a security warning page since the application is in development or testing mode. To proceed:
+
+1. Click on "Advanced" at the bottom of the warning page
+2. Click "Continue to [meeting-scheduler-gamma-five.vercel.app](https://meeting-scheduler-gamma-five.vercel.app) to proceed to the authentication process
+3. Grant the requested permissions when prompted by Google:
+   - Calendar access is required to create meetings
+   - Email and profile information is needed for user identification
+
+The application will immediately register all created meetings in the user's Google Calendar, making them accessible from any device where the user is signed into their Google account.
+
 ## Limitations
 
 1. **API Rate Limits**: Google Calendar API has rate limits (typically 1,000,000 requests/day), which could affect high-traffic applications.
@@ -269,14 +283,6 @@ Vercel automatically sets up continuous deployment from your GitHub repository. 
    - Serverless function optimization
    - Edge function deployment for better global performance
    - WebSocket for real-time updates
-
-## License
-
-MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Learn More
 

@@ -1,9 +1,5 @@
 # Complete Google Calendar API Integration
 
-## Current Implementation Limitations
-
-The current implementation generates Google Meet-compatible links with the format `https://meet.google.com/xxx-yyy-zzz`, but these are simulated links that don't actually create meetings in Google Calendar. When you try to access them, Google won't recognize them as valid meeting rooms.
-
 ## Steps to Implement Real Google Meet Integration
 
 To create real, functional Google Meet links, follow these steps:
